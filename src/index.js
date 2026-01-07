@@ -1,4 +1,4 @@
-import fetchCrmEvents from "./services/crm.service.js";
+import { fetchCrmEvents } from "./services/crm.service.js";
 import { filterEventsByVenue } from "./utils/event.utils.js";
 
 export default {
