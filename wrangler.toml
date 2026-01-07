@@ -1,6 +1,6 @@
-name = "my-cron-job"
+name = "ahmad-logger"
 main = "src/index.js"
 compatibility_date = "2024-01-07"
 
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["* * * * *"]
