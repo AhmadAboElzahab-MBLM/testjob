@@ -83,7 +83,6 @@ export async function createUmbracoEvent(
       );
     }
 
-    // Validate that we have a valid content response
     if (!data._id) {
       throw new Error("Invalid response: missing _id in created content");
     }
