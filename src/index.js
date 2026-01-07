@@ -1,6 +1,17 @@
+import fetchCrmEvents from "./services/crm.service.js";
+import { filterEventsByVenue } from "./utils/event.utils.js";
+
 export default {
   async scheduled(event, env, ctx) {
     console.log(env.AHMAD);
+    const { success, data, error } = await fetchCrmEvents(env.CRM_API_URL, env);
+
+    if (success) {
+      const filteredEvents = filterEventsByVenue(data, "DWTC");
+      console.log("Filtered Events:", filteredEvents);
+    } else {
+      console.error("Failed to fetch events:", error);
+    }
   },
 
   async fetch(request, env, ctx) {
