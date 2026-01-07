@@ -1,4 +1,8 @@
-export async function fetchCrmEvents(env) {
+import type { Env, CrmEvent, ServiceResponse } from "../types/events.types";
+
+export async function fetchCrmEvents(
+  env: Env
+): Promise<ServiceResponse<CrmEvent[]>> {
   try {
     const response = await fetch(env.CRM_API_URL, {
       method: "GET",
@@ -10,11 +14,13 @@ export async function fetchCrmEvents(env) {
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
-    const data = await response.json();
+    const data: CrmEvent[] = await response.json();
     console.log("✅ Data fetched successfully");
     return { success: true, data };
   } catch (error) {
-    console.error("❌ Fetch failed:", error.message);
-    return { success: false, error: error.message };
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("❌ Fetch failed:", errorMessage);
+    return { success: false, error: errorMessage };
   }
 }
