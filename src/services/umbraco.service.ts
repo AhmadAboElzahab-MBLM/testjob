@@ -29,7 +29,12 @@ export async function fetchUmbracoEvents(
         query: `
           query {
             allEvent {
-              items { id eventId lastUpdatedDate name }
+              items {
+                id
+                eventId
+                lastUpdatedDate
+                name
+              }
             }
           }
         `,
@@ -39,7 +44,6 @@ export async function fetchUmbracoEvents(
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     const data: UmbracoGraphQLResponse = await response.json();
-    console.log("✅ Data fetched successfully");
     return { success: true, data: data.data.allEvent.items };
   } catch (error) {
     const errorMessage =
@@ -62,6 +66,7 @@ export async function createUmbracoEvent(
         "Api-Key": env.API_KEY,
         "Api-Version": "2",
       },
+
       body: JSON.stringify(eventData),
     });
 
@@ -69,8 +74,20 @@ export async function createUmbracoEvent(
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const data: UmbracoContentResponse = await response.json();
-    console.log("✅ Event created successfully:", data._id);
+    const data: any = await response.json();
+
+    // Check if the response contains an error object
+    if (data.error) {
+      throw new Error(
+        `Umbraco API error: ${data.error.code} - ${data.error.message}`
+      );
+    }
+
+    // Validate that we have a valid content response
+    if (!data._id) {
+      throw new Error("Invalid response: missing _id in created content");
+    }
+
     return { success: true, data };
   } catch (error) {
     const errorMessage =
@@ -96,7 +113,7 @@ export async function updateUmbracoEvent(
           "Api-Key": env.API_KEY,
           "Api-Version": "2",
         },
-        body: JSON.stringify(eventData),
+        body: JSON.stringify({ parentId: env.UMBRACO_PARENT_ID, ...eventData }),
       }
     );
 
@@ -104,8 +121,15 @@ export async function updateUmbracoEvent(
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const data: UmbracoContentResponse = await response.json();
-    console.log("✅ Event updated successfully:", contentId);
+    const data: any = await response.json();
+
+    // Check if the response contains an error object
+    if (data.error) {
+      throw new Error(
+        `Umbraco API error: ${data.error.code} - ${data.error.message}`
+      );
+    }
+
     return { success: true, data };
   } catch (error) {
     const errorMessage =
@@ -136,8 +160,15 @@ export async function publishUmbracoEvent(
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    const data: UmbracoContentResponse = await response.json();
-    console.log("✅ Event published successfully:", contentId);
+    const data: any = await response.json();
+
+    // Check if the response contains an error object
+    if (data.error) {
+      throw new Error(
+        `Umbraco API error: ${data.error.code} - ${data.error.message}`
+      );
+    }
+
     return { success: true, data };
   } catch (error) {
     const errorMessage =

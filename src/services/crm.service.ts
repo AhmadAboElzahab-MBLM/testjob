@@ -15,7 +15,6 @@ export async function fetchCrmEvents(
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     const data: CrmEvent[] = await response.json();
-    console.log("✅ Data fetched successfully");
     return { success: true, data };
   } catch (error) {
     const errorMessage =

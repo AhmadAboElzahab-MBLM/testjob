@@ -38,6 +38,7 @@ export interface Env {
   OCP_APIM_SUBSCRIPTION_KEY: string;
   UMBRACO_PROJECT_ALIAS: string;
   API_KEY: string;
+  UMBRACO_PARENT_ID: string;
 }
 
 // Response types
@@ -71,8 +72,8 @@ export interface CreateEventRequest {
   location: LocalizedField<string | null>;
   eventOrganiser: LocalizedField;
   websiteURL: LocalizedField<string | null>;
-  eventId: LocalizedField;
-  lastUpdatedDate: LocalizedField;
+  eventId: InvariantField<number>;
+  lastUpdatedDate: InvariantField;
   facebook: LocalizedField<string | null>;
   linkedIn: LocalizedField<string | null>;
   twitter: LocalizedField<string | null>;
