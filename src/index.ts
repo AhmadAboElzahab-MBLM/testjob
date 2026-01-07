@@ -5,6 +5,7 @@ import {
   updateUmbracoEvent,
   publishUmbracoEvent,
 } from "./services/umbraco.service";
+import { sendSyncNotificationEmail } from "./services/mailgun.service";
 import {
   filterEventsByVenue,
   compareEvents,
@@ -60,13 +61,57 @@ export default {
     console.log(`🔄 Events to update: ${toUpdate.length}`);
     console.log(`➕ Events to create: ${toCreate.length}`);
 
+    const processedEventIds: string[] = [];
+    const updatedEvents: Array<{
+      title: string;
+      eventId: number;
+      startDate: string;
+      endDate: string;
+      location: string | null;
+      eventType: string;
+      eventOrganiser: string;
+    }> = [];
+    const createdEvents: Array<{
+      title: string;
+      eventId: number;
+      startDate: string;
+      endDate: string;
+      location: string | null;
+      eventType: string;
+      eventOrganiser: string;
+    }> = [];
+    const failedEvents: Array<{
+      title: string;
+      eventId: number;
+      startDate: string;
+      endDate: string;
+      location: string | null;
+      eventType: string;
+      eventOrganiser: string;
+      error: string;
+    }> = [];
+
     // Skip processing if nothing needs to be done
     if (toUpdate.length === 0 && toCreate.length === 0) {
       console.log("✅ All events are up to date - no sync needed!");
+
+      // Still send email notification even if no changes
+      try {
+        await sendSyncNotificationEmail(env, {
+          updatedEvents,
+          createdEvents,
+          failedEvents,
+          syncDate: new Date().toLocaleString("en-US", {
+            timeZone: "Asia/Dubai",
+            dateStyle: "full",
+            timeStyle: "long",
+          }),
+        });
+      } catch (emailError) {
+        console.error("⚠️ Email notification failed");
+      }
       return;
     }
-
-    const processedEventIds: string[] = [];
 
     // Update existing events where CRM data is newer
     for (const { umbracoEvent, crmEvent } of toUpdate) {
@@ -79,11 +124,30 @@ export default {
 
       if (updateResult.success) {
         processedEventIds.push(umbracoEvent.id);
+        updatedEvents.push({
+          title: crmEvent.title,
+          eventId: crmEvent.eventId,
+          startDate: crmEvent.startDate,
+          endDate: crmEvent.endDate,
+          location: crmEvent.location,
+          eventType: crmEvent.eventType,
+          eventOrganiser: crmEvent.eventOrganiser,
+        });
       } else {
         console.error(
           `❌ Failed to update event ${crmEvent.eventId}:`,
           updateResult.error
         );
+        failedEvents.push({
+          title: crmEvent.title,
+          eventId: crmEvent.eventId,
+          startDate: crmEvent.startDate,
+          endDate: crmEvent.endDate,
+          location: crmEvent.location,
+          eventType: crmEvent.eventType,
+          eventOrganiser: crmEvent.eventOrganiser,
+          error: updateResult.error,
+        });
       }
     }
 
@@ -94,11 +158,30 @@ export default {
 
       if (createResult.success) {
         processedEventIds.push(createResult.data._id);
+        createdEvents.push({
+          title: crmEvent.title,
+          eventId: crmEvent.eventId,
+          startDate: crmEvent.startDate,
+          endDate: crmEvent.endDate,
+          location: crmEvent.location,
+          eventType: crmEvent.eventType,
+          eventOrganiser: crmEvent.eventOrganiser,
+        });
       } else {
         console.error(
           `❌ Failed to create event ${crmEvent.eventId}:`,
           createResult.error
         );
+        failedEvents.push({
+          title: crmEvent.title,
+          eventId: crmEvent.eventId,
+          startDate: crmEvent.startDate,
+          endDate: crmEvent.endDate,
+          location: crmEvent.location,
+          eventType: crmEvent.eventType,
+          eventOrganiser: crmEvent.eventOrganiser,
+          error: createResult.error,
+        });
       }
     }
 
@@ -115,6 +198,22 @@ export default {
     }
 
     console.log("✅ Sync completed successfully!");
+
+    // Send email notification with sync summary
+    try {
+      await sendSyncNotificationEmail(env, {
+        updatedEvents,
+        createdEvents,
+        failedEvents,
+        syncDate: new Date().toLocaleString("en-US", {
+          timeZone: "Asia/Dubai",
+          dateStyle: "full",
+          timeStyle: "long",
+        }),
+      });
+    } catch (emailError) {
+      console.error("⚠️ Sync completed but email notification failed");
+    }
   },
 
   async fetch(request, env, ctx) {

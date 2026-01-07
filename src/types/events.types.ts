@@ -39,6 +39,10 @@ export interface Env {
   UMBRACO_PROJECT_ALIAS: string;
   API_KEY: string;
   UMBRACO_PARENT_ID: string;
+  MAILGUN_API_KEY: string;
+  MAILGUN_API_BASE_URL: string;
+  NOTIFICATION_EMAIL: string;
+  NOTIFICATION_FROM_EMAIL: string;
 }
 
 // Response types
