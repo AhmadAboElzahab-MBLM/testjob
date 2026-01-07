@@ -1,4 +1,10 @@
-import type { Env, UmbracoEvent, ServiceResponse } from "../types/events.types";
+import type {
+  Env,
+  UmbracoEvent,
+  ServiceResponse,
+  CreateEventRequest,
+  UmbracoContentResponse,
+} from "../types/events.types";
 
 interface UmbracoGraphQLResponse {
   data: {
@@ -39,6 +45,104 @@ export async function fetchUmbracoEvents(
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
     console.error("❌ Fetch failed:", errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
+export async function createUmbracoEvent(
+  env: Env,
+  eventData: CreateEventRequest
+): Promise<ServiceResponse<UmbracoContentResponse>> {
+  try {
+    const response = await fetch("https://api.umbraco.io/content", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Umb-Project-Alias": env.UMBRACO_PROJECT_ALIAS,
+        "Api-Key": env.API_KEY,
+        "Api-Version": "2",
+      },
+      body: JSON.stringify(eventData),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data: UmbracoContentResponse = await response.json();
+    console.log("✅ Event created successfully:", data._id);
+    return { success: true, data };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("❌ Create failed:", errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
+export async function updateUmbracoEvent(
+  env: Env,
+  contentId: string,
+  eventData: Partial<CreateEventRequest>
+): Promise<ServiceResponse<UmbracoContentResponse>> {
+  try {
+    const response = await fetch(
+      `https://api.umbraco.io/content/${contentId}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "Umb-Project-Alias": env.UMBRACO_PROJECT_ALIAS,
+          "Api-Key": env.API_KEY,
+          "Api-Version": "2",
+        },
+        body: JSON.stringify(eventData),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data: UmbracoContentResponse = await response.json();
+    console.log("✅ Event updated successfully:", contentId);
+    return { success: true, data };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("❌ Update failed:", errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
+export async function publishUmbracoEvent(
+  env: Env,
+  contentId: string
+): Promise<ServiceResponse<UmbracoContentResponse>> {
+  try {
+    const response = await fetch(
+      `https://api.umbraco.io/content/${contentId}/publish`,
+      {
+        method: "PUT",
+        headers: {
+          "Umb-Project-Alias": env.UMBRACO_PROJECT_ALIAS,
+          "Api-Key": env.API_KEY,
+          "Api-Version": "2",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data: UmbracoContentResponse = await response.json();
+    console.log("✅ Event published successfully:", contentId);
+    return { success: true, data };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("❌ Publish failed:", errorMessage);
     return { success: false, error: errorMessage };
   }
 }
