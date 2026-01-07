@@ -1,6 +1,6 @@
-export async function fetchCrmEvents(url, env) {
+export async function fetchCrmEvents(env) {
   try {
-    const response = await fetch(url, {
+    const response = await fetch(env.CRM_API_URL, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

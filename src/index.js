@@ -4,7 +4,7 @@ import { filterEventsByVenue } from "./utils/event.utils.js";
 export default {
   async scheduled(event, env, ctx) {
     console.log(env.AHMAD);
-    const { success, data, error } = await fetchCrmEvents(env.CRM_API_URL, env);
+    const { success, data, error } = await fetchCrmEvents(env);
 
     if (success) {
       const filteredEvents = filterEventsByVenue(data, "DWTC");
