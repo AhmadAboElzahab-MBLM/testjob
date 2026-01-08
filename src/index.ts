@@ -30,16 +30,12 @@ export default {
   async scheduled(event, env, ctx) {
     console.log("🔄 Starting CRM to Umbraco sync...");
 
-    // Fetch data from both sources
     const crmResponse = await fetchCrmEvents(env);
     const umbracoResponse = await fetchUmbracoEvents(env);
-
-    // Check if both requests succeeded
     if (!crmResponse.success) {
       console.error("❌ Failed to fetch CRM events:", crmResponse.error);
       return;
     }
-
     if (!umbracoResponse.success) {
       console.error(
         "❌ Failed to fetch Umbraco events:",
@@ -47,12 +43,9 @@ export default {
       );
       return;
     }
-
-    // Filter CRM events for DWTC venue only
     const filteredCrmEvents = filterEventsByVenue(crmResponse.data, "DWTC");
     console.log(`📊 Found ${filteredCrmEvents.length} DWTC events in CRM`);
 
-    // Compare and determine what needs to be synced
     const { toUpdate, toCreate } = compareEvents(
       filteredCrmEvents,
       umbracoResponse.data
@@ -91,11 +84,9 @@ export default {
       error: string;
     }> = [];
 
-    // Skip processing if nothing needs to be done
     if (toUpdate.length === 0 && toCreate.length === 0) {
       console.log("✅ All events are up to date - no sync needed!");
 
-      // Still send email notification even if no changes
       try {
         await sendSyncNotificationEmail(env, {
           updatedEvents,
@@ -113,7 +104,6 @@ export default {
       return;
     }
 
-    // Update existing events where CRM data is newer
     for (const { umbracoEvent, crmEvent } of toUpdate) {
       const eventData = mapCrmEventToUmbraco(crmEvent);
       const updateResult = await updateUmbracoEvent(
@@ -123,6 +113,7 @@ export default {
       );
 
       if (updateResult.success) {
+        console.log(`✏️ Updated: ${crmEvent.title} (ID: ${crmEvent.eventId})`);
         processedEventIds.push(umbracoEvent.id);
         updatedEvents.push({
           title: crmEvent.title,
@@ -151,12 +142,15 @@ export default {
       }
     }
 
-    // Create new events that don't exist in Umbraco
     for (const crmEvent of toCreate) {
-      const eventData = mapCrmEventToUmbraco(crmEvent, env.UMBRACO_PARENT_ID) as CreateEventRequest;
+      const eventData = mapCrmEventToUmbraco(
+        crmEvent,
+        env.UMBRACO_PARENT_ID
+      ) as CreateEventRequest;
       const createResult = await createUmbracoEvent(env, eventData);
 
       if (createResult.success) {
+        console.log(`➕ Created: ${crmEvent.title} (ID: ${crmEvent.eventId})`);
         processedEventIds.push(createResult.data._id);
         createdEvents.push({
           title: crmEvent.title,
@@ -185,11 +179,18 @@ export default {
       }
     }
 
-    // Publish all processed events
     for (const contentId of processedEventIds) {
       const publishResult = await publishUmbracoEvent(env, contentId);
 
-      if (!publishResult.success) {
+      if (publishResult.success) {
+        const eventInfo = [...updatedEvents, ...createdEvents].find(
+          (e) =>
+            e.eventId.toString() === contentId ||
+            contentId.includes(e.eventId.toString())
+        );
+        const eventName = eventInfo?.title || contentId;
+        console.log(`🚀 Published: ${eventName}`);
+      } else {
         console.error(
           `❌ Failed to publish event ${contentId}:`,
           publishResult.error
@@ -199,7 +200,6 @@ export default {
 
     console.log("✅ Sync completed successfully!");
 
-    // Send email notification with sync summary
     try {
       await sendSyncNotificationEmail(env, {
         updatedEvents,
@@ -213,6 +213,25 @@ export default {
       });
     } catch (emailError) {
       console.error("⚠️ Sync completed but email notification failed");
+    }
+
+    if (processedEventIds.length > 0) {
+      try {
+        console.log("🔨 Triggering Cloudflare Pages build...");
+        const webhookResponse = await fetch(env.CLOUDFLARE_WEBHOOK, {
+          method: "POST",
+        });
+
+        if (webhookResponse.ok) {
+          console.log("✅ Cloudflare Pages build triggered successfully!");
+        } else {
+          console.error(
+            `⚠️ Failed to trigger Cloudflare build: ${webhookResponse.status}`
+          );
+        }
+      } catch (webhookError) {
+        console.error("⚠️ Failed to trigger Cloudflare build webhook");
+      }
     }
   },
 

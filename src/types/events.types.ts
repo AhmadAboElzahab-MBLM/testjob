@@ -39,10 +39,12 @@ export interface Env {
   UMBRACO_PROJECT_ALIAS: string;
   API_KEY: string;
   UMBRACO_PARENT_ID: string;
+  UMBRACO_BASE_URL: string;
   MAILGUN_API_KEY: string;
   MAILGUN_API_BASE_URL: string;
   NOTIFICATION_EMAIL: string;
   NOTIFICATION_FROM_EMAIL: string;
+  CLOUDFLARE_WEBHOOK: string;
 }
 
 // Response types

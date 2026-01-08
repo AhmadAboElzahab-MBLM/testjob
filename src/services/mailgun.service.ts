@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { Env, CrmEvent } from "../types/events.types";
+import type { Env } from "../types/events.types";
 
 interface EventDetails {
   title: string;
@@ -19,26 +19,59 @@ interface SyncSummary {
 }
 
 function generateExcelAttachment(summary: SyncSummary): Uint8Array {
-  // Create a new workbook
   const workbook = XLSX.utils.book_new();
 
-  // Create summary sheet
   const summaryData = [
-    ["Sync Report Summary"],
+    ["CRM TO UMBRACO SYNC REPORT"],
+    [""],
     ["Sync Date", summary.syncDate],
     [""],
+    ["SUMMARY"],
+    ["Metric", "Count"],
     ["Total Events Updated", summary.updatedEvents.length],
     ["Total Events Created", summary.createdEvents.length],
-    ["Total Failed Events", summary.failedEvents.length],
     [
       "Total Events Processed",
       summary.updatedEvents.length + summary.createdEvents.length,
     ],
+    ["Total Failed Events", summary.failedEvents.length],
+    [""],
+    ["STATUS"],
+    summary.failedEvents.length === 0
+      ? ["Sync Status", "✓ All events synced successfully"]
+      : ["Sync Status", `⚠ ${summary.failedEvents.length} event(s) failed`],
   ];
+
+  if (summary.updatedEvents.length > 0) {
+    summaryData.push([""], ["UPDATED EVENTS"]);
+    summaryData.push(["Event Name"]);
+    summary.updatedEvents.forEach((e) => {
+      summaryData.push([e.title]);
+    });
+  }
+
+  if (summary.createdEvents.length > 0) {
+    summaryData.push([""], ["CREATED EVENTS"]);
+    summaryData.push(["Event Name"]);
+    summary.createdEvents.forEach((e) => {
+      summaryData.push([e.title]);
+    });
+  }
+
+  if (summary.failedEvents.length > 0) {
+    summaryData.push([""], ["FAILED EVENTS"]);
+    summaryData.push(["Event Name", "Event ID", "Error"]);
+    summary.failedEvents.forEach((e) => {
+      summaryData.push([e.title, e.eventId, e.error]);
+    });
+  }
+
   const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+
+  summarySheet["!cols"] = [{ wch: 40 }, { wch: 15 }, { wch: 20 }, { wch: 20 }];
+
   XLSX.utils.book_append_sheet(workbook, summarySheet, "Summary");
 
-  // Create updated events sheet
   if (summary.updatedEvents.length > 0) {
     const updatedData = [
       [
@@ -64,7 +97,6 @@ function generateExcelAttachment(summary: SyncSummary): Uint8Array {
     XLSX.utils.book_append_sheet(workbook, updatedSheet, "Updated Events");
   }
 
-  // Create created events sheet
   if (summary.createdEvents.length > 0) {
     const createdData = [
       [
@@ -90,7 +122,6 @@ function generateExcelAttachment(summary: SyncSummary): Uint8Array {
     XLSX.utils.book_append_sheet(workbook, createdSheet, "Created Events");
   }
 
-  // Create failed events sheet
   if (summary.failedEvents.length > 0) {
     const failedData = [
       [
@@ -119,7 +150,10 @@ function generateExcelAttachment(summary: SyncSummary): Uint8Array {
   }
 
   // Write to buffer
-  const excelBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+  const excelBuffer = XLSX.write(workbook, {
+    type: "buffer",
+    bookType: "xlsx",
+  });
   return new Uint8Array(excelBuffer);
 }
 
@@ -137,14 +171,11 @@ export async function sendSyncNotificationEmail(
       summary.updatedEvents.length + summary.createdEvents.length;
 
     const emailBody = buildEmailBody(summary);
-
-    // Generate Excel attachment
     console.log("📊 Generating Excel attachment...");
     const excelBuffer = generateExcelAttachment(summary);
     const excelBlob = new Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-
     const formData = new FormData();
     formData.append("from", env.NOTIFICATION_FROM_EMAIL);
     formData.append("to", env.NOTIFICATION_EMAIL);
@@ -158,30 +189,20 @@ export async function sendSyncNotificationEmail(
       excelBlob,
       `sync-report-${new Date().toISOString().split("T")[0]}.xlsx`
     );
-
     console.log("📧 Sending request to Mailgun...");
-
-    const response = await fetch(
-      `${env.MAILGUN_API_BASE_URL}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${btoa(`api:${env.MAILGUN_API_KEY}`)}`,
-        },
-        body: formData,
-      }
-    );
-
+    const response = await fetch(`${env.MAILGUN_API_BASE_URL}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${btoa(`api:${env.MAILGUN_API_KEY}`)}`,
+      },
+      body: formData,
+    });
     console.log(`📧 Mailgun response status: ${response.status}`);
-
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`📧 Mailgun error response: ${errorText}`);
-      throw new Error(
-        `Mailgun API error: ${response.status} - ${errorText}`
-      );
+      throw new Error(`Mailgun API error: ${response.status} - ${errorText}`);
     }
-
     const responseData: any = await response.json();
     console.log("✅ Notification email sent successfully");
     console.log(`📧 Message ID: ${responseData.id}`);
@@ -189,7 +210,6 @@ export async function sendSyncNotificationEmail(
     const errorMessage =
       error instanceof Error ? error.message : "Unknown error occurred";
     console.error("❌ Failed to send notification email:", errorMessage);
-    // Re-throw the error so it's visible in the main logs
     throw error;
   }
 }
@@ -312,7 +332,6 @@ function buildEmailBody(summary: SyncSummary): string {
   </div>
 `;
 
-  // Updated Events Section
   if (summary.updatedEvents.length > 0) {
     html += `
   <div class="section">
@@ -333,7 +352,6 @@ function buildEmailBody(summary: SyncSummary): string {
 `;
   }
 
-  // Created Events Section
   if (summary.createdEvents.length > 0) {
     html += `
   <div class="section">
@@ -354,7 +372,6 @@ function buildEmailBody(summary: SyncSummary): string {
 `;
   }
 
-  // Failed Events Section
   if (summary.failedEvents.length > 0) {
     html += `
   <div class="section">

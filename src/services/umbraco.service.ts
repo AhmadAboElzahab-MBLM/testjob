@@ -121,8 +121,6 @@ export async function updateUmbracoEvent(
     }
 
     const data: any = await response.json();
-
-    // Check if the response contains an error object
     if (data.error) {
       throw new Error(
         `Umbraco API error: ${data.error.code} - ${data.error.message}`
@@ -160,8 +158,6 @@ export async function publishUmbracoEvent(
     }
 
     const data: any = await response.json();
-
-    // Check if the response contains an error object
     if (data.error) {
       throw new Error(
         `Umbraco API error: ${data.error.code} - ${data.error.message}`

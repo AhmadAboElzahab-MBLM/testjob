@@ -16,7 +16,10 @@ export function filterEventsByVenue(
   venue: string
 ): CrmEvent[] {
   const filteredEvents = events.filter(
-    (event) => event.eventVenues && event.eventVenues.includes(venue)
+    (event) =>
+      event.eventVenues &&
+      event.eventVenues.includes(venue) &&
+      event.WebsiteStatus.toLowerCase() === "online"
   );
   return filteredEvents;
 }
@@ -33,29 +36,22 @@ export function compareEvents(
   const toUpdate: Array<{ umbracoEvent: UmbracoEvent; crmEvent: CrmEvent }> =
     [];
   const toCreate: CrmEvent[] = [];
-
-  // Create a map of Umbraco events by eventId for quick lookup
   const umbracoMap = new Map<string, UmbracoEvent>();
   umbracoEvents.forEach((event) => {
     umbracoMap.set(event.eventId, event);
   });
-
-  // Process each CRM event
   crmEvents.forEach((crmEvent) => {
     const crmEventId = crmEvent.eventId.toString();
     const umbracoEvent = umbracoMap.get(crmEventId);
-
     if (umbracoEvent) {
-      // Event exists in Umbraco - check if dates are different
-      // Normalize both dates to handle extra quotes that Umbraco adds
       const normalizedCrmDate = normalizeDateString(crmEvent.lastUpdatedDate);
-      const normalizedUmbracoDate = normalizeDateString(umbracoEvent.lastUpdatedDate);
-
+      const normalizedUmbracoDate = normalizeDateString(
+        umbracoEvent.lastUpdatedDate
+      );
       if (normalizedCrmDate !== normalizedUmbracoDate) {
         toUpdate.push({ umbracoEvent, crmEvent });
       }
     } else {
-      // Event doesn't exist in Umbraco - needs to be created
       toCreate.push(crmEvent);
     }
   });
@@ -137,7 +133,6 @@ export function mapCrmEventToUmbraco(
     },
   };
 
-  // Include parentId if provided (for creating new events)
   if (parentId) {
     return { ...baseData, parentId };
   }
