@@ -14,6 +14,38 @@ interface UmbracoGraphQLResponse {
   };
 }
 
+export async function fetchEventById(
+  env: Env,
+  contentId: string
+): Promise<ServiceResponse<any>> {
+  try {
+    const response = await fetch(
+      `https://api.umbraco.io/content/${contentId}`,
+      {
+        method: "GET",
+        headers: {
+          "Umb-Project-Alias": env.UMBRACO_PROJECT_ALIAS,
+          "Api-Key": env.API_KEY,
+          "Api-Version": "2",
+        },
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data: any = await response.json();
+    console.log("fetch by id response:", data);
+
+    return { success: true, data };
+  } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error occurred";
+    console.error("❌ Fetch event by ID failed:", errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
 export async function fetchUmbracoEvents(
   env: Env
 ): Promise<ServiceResponse<UmbracoEvent[]>> {

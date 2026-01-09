@@ -4,6 +4,7 @@ import {
   createUmbracoEvent,
   updateUmbracoEvent,
   publishUmbracoEvent,
+  fetchEventById,
 } from "./services/umbraco.service";
 import { sendSyncNotificationEmail } from "./services/mailgun.service";
 import {
@@ -105,7 +106,40 @@ export default {
     }
 
     for (const { umbracoEvent, crmEvent } of toUpdate) {
-      const eventData = mapCrmEventToUmbraco(crmEvent);
+      const fetchResult = await fetchEventById(env, umbracoEvent.id);
+      if (!fetchResult.success) {
+        console.error(
+          `❌ Failed to fetch event ${crmEvent.eventId} for update:`,
+          fetchResult.error
+        );
+        failedEvents.push({
+          title: crmEvent.title,
+          eventId: crmEvent.eventId,
+          startDate: crmEvent.startDate,
+          endDate: crmEvent.endDate,
+          location: crmEvent.location,
+          eventType: crmEvent.eventType,
+          eventOrganiser: crmEvent.eventOrganiser,
+          error: fetchResult.error,
+        });
+        continue;
+      }
+      const existingEvent = fetchResult.data;
+      delete existingEvent._createDate;
+      delete existingEvent._id;
+      delete existingEvent._hasChildren;
+      delete existingEvent._level;
+      delete existingEvent.sortOrder;
+      delete existingEvent._currentVersionState;
+      delete existingEvent._updateDate;
+      delete existingEvent.rel;
+      delete existingEvent._links;
+      const crmEventData = mapCrmEventToUmbraco(crmEvent);
+
+      const eventData = {
+        ...existingEvent,
+        ...crmEventData,
+      };
       const updateResult = await updateUmbracoEvent(
         env,
         umbracoEvent.id,
